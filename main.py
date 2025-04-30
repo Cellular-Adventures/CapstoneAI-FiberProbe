@@ -23,7 +23,7 @@ feature_scaler, target_scaler, feature_scaler2 = load_scalers()
 # Loop over all zips
 for file_path in path_to_data:
     # Load and preprocess the input
-    df = process_folder(file_path, plot=True, labels=True)
+    df = process_folder(file_path, path_to_output, plot=True, labels=True)
     X_gru1 = frame_waves(df['VoltageOut'], length=150, jump=0)[0]
     X_gru1_scaled = torch.tensor(feature_scaler.transform(X_gru1)[...,np.newaxis], dtype=torch.float32)   
     X_gru2 = frame_waves(df['VoltageOut'], length=250, jump=500)[0]
