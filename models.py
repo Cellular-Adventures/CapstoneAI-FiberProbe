@@ -71,18 +71,18 @@ def get_results(input_folder_path, model_folder_path, jump=900,
     print(f"Using device: {device}")
 
     model_1 = GRUModel(1, 20, num_layers=2)
-    model_1.load_state_dict(torch.load(model_folder_path+'\GRU_lr0.01_H20_norm2_nlayer2.h5', map_location=torch.device('cpu')))
+    model_1.load_state_dict(torch.load(model_folder_path+r'\GRU_lr0.01_H20_norm2_nlayer2.h5', map_location=torch.device('cpu')))
 
-    model_2 = torch.load(model_folder_path+"\full_LSTM_lr0.008_H30_norm3_nlayer2.h5", map_location=torch.device('cpu'))
+    model_2 = torch.load(model_folder_path+r"\full_LSTM_lr0.008_H30_norm3_nlayer2.h5", map_location=torch.device('cpu'))
 
     model_3 = GRUModel(1, 20, num_layers=2)
-    model_3.load_state_dict(torch.load(model_folder_path+"\GRU_lr0.02_H20_norm3_nlayer2.h5", map_location=torch.device('cpu')))
+    model_3.load_state_dict(torch.load(model_folder_path+r"\GRU_lr0.02_H20_norm3_nlayer2.h5", map_location=torch.device('cpu')))
 
     # Import StandardScalers with scaling parameters of the training set
-    with open(model_folder_path+"\feature_scaler.pkl", 'rb') as file: # maybe adjust path
+    with open(model_folder_path+r"\feature_scaler.pkl", 'rb') as file: # maybe adjust path
         loaded_feature_scaler = pickle.load(file)
         
-    with open(model_folder_path+'\target_scaler.pkl', 'rb') as file: # maybe adjust path
+    with open(model_folder_path+r'\target_scaler.pkl', 'rb') as file: # maybe adjust path
         loaded_target_scaler = pickle.load(file)
 
     # Making model predictions
@@ -145,9 +145,9 @@ def load_models():
     #GRU2 = GRUModel(1, 20, num_layers=2)
     #GRU2.load_state_dict(torch.load(r"advanced_model_files\GRU2_lr0.01_H20_norm1_nlayer2.h5", map_location=torch.device('cpu')))
     #GRU2 = torch.load(r'final_model_files\GRU_lr0.02_H20_norm3_nlayer2.h5', map_location=torch.device('cpu'))
-    gru1 = torch.load(r'advanced_model_files\GRU_lr0.01_H20_norm2_nlayer2.h5', map_location=torch.device('cpu'))
-    gru2 = torch.load(r'advanced_model_files\GRU2_lr0.01_H20_norm1_nlayer2.h5', map_location=torch.device('cpu'))
-    lstm = torch.load(r"advanced_model_files\LSTM_lr0.005_H30_norm3_nlayer2.h5", map_location=torch.device('cpu'))
+    gru1 = torch.load(r'advanced_model_files\GRU_lr0.01_H20_norm2_nlayer2.h5', map_location=torch.device('cpu'), weights_only=False)
+    gru2 = torch.load(r'advanced_model_files\GRU2_lr0.01_H20_norm1_nlayer2.h5', map_location=torch.device('cpu'), weights_only=False)
+    lstm = torch.load(r"advanced_model_files\LSTM_lr0.005_H30_norm3_nlayer2.h5", map_location=torch.device('cpu'), weights_only=False)
     
 
     return gru1, gru2, lstm
