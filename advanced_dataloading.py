@@ -312,7 +312,7 @@ def save_bubbles(extracted_bubbles, run_name, folder_path, bubble_labels, flow_r
     return saved_bubbles
 
 
-def process_folder(folder_path, plot, labels):
+def process_folder(input_path, output_path, plot, labels):
     """
     Processes a single folder containing bubble run data.
 
@@ -324,7 +324,7 @@ def process_folder(folder_path, plot, labels):
     Returns:
         pd.DataFrame: A DataFrame containing the processed bubble data.
     """
-    bin_file, binlog_file, evt_file, run_name = find_files(folder_path)
+    bin_file, binlog_file, evt_file, run_name = find_files(input_path)
 
     binlogdata = get_binlogdata(binlog_file)
     coef1 = binlogdata["channelCoef1"]
@@ -334,15 +334,15 @@ def process_folder(folder_path, plot, labels):
 
     print(binlogdata)
 
-    extracted_bubbles = get_bubbles_advanced(bin_file, coef1, coef2, plot, folder_path, run_name)
+    extracted_bubbles = get_bubbles_advanced(bin_file, coef1, coef2, plot, output_path, run_name)
 
     if labels:
         bubble_labels = get_labels(evt_file)
     else:
        bubble_labels = None 
 
-    save_bubbles_df = save_bubbles(extracted_bubbles, run_name, folder_path, bubble_labels, flowRate, acquisitionFrequency)
-    zip_all_csv_files(folder_path)
+    save_bubbles_df = save_bubbles(extracted_bubbles, run_name, output_path, bubble_labels, flowRate, acquisitionFrequency)
+    zip_all_csv_files(output_path)
     return save_bubbles_df
 
 
