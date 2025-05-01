@@ -358,7 +358,7 @@ def flatten_data_distribution(X, y, bins, scaling_factor=0.5, noise=0.005):
 #data = read_seperate_csv_from_zip(filename)
 #print("Data loaded")
 
-def save_second_scaler(data):
+def save_second_scaler_cropped(data):
     feature_scaler = StandardScaler()
     target_scaler = StandardScaler()
     X, y = valid_velo_data(data)
@@ -369,6 +369,17 @@ def save_second_scaler(data):
     X_train = feature_scaler.fit_transform(X_train)
     y_train = target_scaler.fit_transform(y_train.reshape(-1, 1)).flatten()
     return feature_scaler, target_scaler
+
+def save_second_scaler(data):
+    feature_scaler = StandardScaler()
+    target_scaler = StandardScaler()
+    X, y = valid_velo_data(data)
+    
+    X_train_val, X_test, y_train_val, y_test = train_test_split(X, y, train_size=0.75, random_state=0)
+    X_train, X_val, y_train, y_val = train_test_split(X_train_val, y_train_val, train_size=0.67, random_state=0)
+    X_train = feature_scaler.fit_transform(X_train)
+    y_train = target_scaler.fit_transform(y_train.reshape(-1, 1)).flatten()
+    return feature_scaler, target_scaler, X_train, y_train, X_val, y_val, X_test, y_test
 
 '''
 data = read_seperate_csv_from_zip('All_bubbles.zip')
