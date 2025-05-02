@@ -175,6 +175,57 @@ def get_bubbles_advanced(bin_file, coef1, coef2, plot=False, folder_path=None, r
 
     return bubbles
 
+def get_bubbles_advanced_full(bin_file, coef1, coef2, plot=False, folder_path=None, run_name=None):
+    """
+    Extracts bubble entries and exits implementing dual-thresholding strategy.
+
+    Args:
+        bin_file (str): Path to the binary file (.bin).
+        coef1 (float): Channel coefficient 1 (offset).
+        coef2 (float): Channel coefficient 2 (scaling factor).
+        plot (bool): Whether to plot the results. Defaults to False.
+        folder_path (str, optional): Path to the folder where the plot will be saved. Required if plot=True.
+        run_name (str, optional): Name of the run for naming the plot file. Required if plot=True.
+    
+    Returns:
+        list: Extracted bubble data.
+    """
+    trans_data = np.memmap(bin_file, dtype=">i2", mode="r")
+    voltage_data = (trans_data.astype(np.float32) * coef2 + coef1)
+    print(f"{len(voltage_data)} datapoints extracted")
+
+    # Apply moving average for additional smoothing
+    window_size = 100 
+    kernel = np.ones(window_size) / window_size
+    smoothed_voltage_data = np.convolve(voltage_data, kernel, mode='valid')
+    smoothed_voltage_data = np.concatenate((np.full(window_size - 1, smoothed_voltage_data[0]), smoothed_voltage_data))
+
+    # Compute the gradient of the smoothed and averaged data
+    gradient = np.gradient(smoothed_voltage_data)
+
+    # Detect peaks in the negative gradient
+    peaks, _ = find_peaks(-gradient, prominence=0.005, distance=1000) 
+
+    tE = peaks
+    tE1 = tE - 1000
+    tE1 = tE1[tE1 >= 0] 
+
+    tE0 = tE1 - 4000
+    tE0 = tE0[tE0 >= 0] 
+
+    bubbles = []
+    for idx, (start, end, peak) in enumerate(zip(tE0, tE1, tE)):
+        if start >= 0 and end < len(voltage_data):
+            voltage_out = voltage_data[start:end].tolist() 
+            bubbles.append(["E"+str(idx), peak, voltage_out])
+
+    # Plot if requested
+    if plot:
+        if folder_path is None or run_name is None:
+            raise ValueError("Both `folder_path` and `run_name` must be provided when plot=True.")
+        plot_bubble_detection(voltage_data, tE, tE1, tE0, n=5000000, folder_path=folder_path, run_name=run_name)
+
+    return bubbles
 
 def plot_bubble_detection(voltage_data, tE, tE1, tE0, n, folder_path, run_name):
     """
