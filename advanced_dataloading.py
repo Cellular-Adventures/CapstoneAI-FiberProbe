@@ -396,6 +396,38 @@ def process_folder(input_path, output_path, plot, labels):
     zip_all_csv_files(output_path)
     return save_bubbles_df
 
+def process_folder_new(input_path, output_path, plot, labels):
+    """
+    Processes a single folder containing bubble run data.
+
+    Args:
+        folder_path (str): Path to the folder containing the data files.
+        plot (bool): Whether to generate plots during processing.
+        labels (bool): Whether to process labels.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the processed bubble data.
+    """
+    bin_file, binlog_file, evt_file, run_name = find_files(input_path)
+
+    binlogdata = get_binlogdata(binlog_file)
+    coef1 = binlogdata["channelCoef1"]
+    coef2 = binlogdata["channelCoef2"]
+    flowRate = binlogdata["flowRate"]
+    acquisitionFrequency = binlogdata["acquisitionFrequency"]
+
+    print(binlogdata)
+
+    extracted_bubbles = get_bubbles_advanced_full(bin_file, coef1, coef2, plot, output_path, run_name)
+
+    if labels:
+        bubble_labels = get_labels(evt_file)
+    else:
+       bubble_labels = None 
+
+    save_bubbles_df = save_bubbles(extracted_bubbles, run_name, output_path, bubble_labels, flowRate, acquisitionFrequency)
+    zip_all_csv_files(output_path)
+    return save_bubbles_df
 
 def zip_all_csv_files(main_folder):
     """
