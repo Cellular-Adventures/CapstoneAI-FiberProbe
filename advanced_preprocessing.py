@@ -379,6 +379,8 @@ def save_second_scaler(data):
     X_train, X_val, y_train, y_val = train_test_split(X_train_val, y_train_val, train_size=0.67, random_state=0)
     X_train = feature_scaler.fit_transform(X_train)
     y_train = target_scaler.fit_transform(y_train.reshape(-1, 1)).flatten()
+    X_val = feature_scaler.transform(X_val)
+    y_val = target_scaler.transform(y_val.reshape(-1, 1)).flatten()
     return feature_scaler, target_scaler, X_train, y_train, X_val, y_val, X_test, y_test
 
 '''
