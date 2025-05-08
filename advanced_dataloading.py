@@ -50,6 +50,47 @@ def find_files(folder_path):
         
     return bin_file, binlog_file, evt_file, run_name 
 
+def find_all_runs(folder_path):
+    """
+    Find all sets of (.bin, .binlog, .evt) files in the given folder.
+
+    Returns:
+        tuple of lists: (bin_files, binlog_files, evt_files, run_names)
+    """
+    runs = {}
+
+    for file in os.listdir(folder_path):
+        if file.endswith(".bin") and "_stream" not in file:
+            run_name = os.path.splitext(file)[0]
+            if run_name not in runs:
+                runs[run_name] = {"bin": None, "binlog": None, "evt": None}
+            runs[run_name]["bin"] = os.path.join(folder_path, file)
+
+        elif file.endswith(".binlog"):
+            name = os.path.splitext(file)[0]
+            for run in runs:
+                if name in run:
+                    runs[run]["binlog"] = os.path.join(folder_path, file)
+
+        elif file.endswith(".evt") and "_stream" not in file:
+            name = os.path.splitext(file)[0]
+            for run in runs:
+                if name in run:
+                    runs[run]["evt"] = os.path.join(folder_path, file)
+
+    # Build output lists
+    bin_files = []
+    binlog_files = []
+    evt_files = []
+    run_names = []
+
+    for run_name, files in runs.items():
+        bin_files.append(files["bin"])
+        binlog_files.append(files["binlog"])
+        evt_files.append(files["evt"])
+        run_names.append(run_name)
+
+    return bin_files, binlog_files, evt_files, run_names
 
 def get_binlogdata(binlog_file):
     """
@@ -365,37 +406,40 @@ def save_bubbles(extracted_bubbles, run_name, folder_path, bubble_labels, flow_r
 
 def process_folder(input_path, output_path, plot, labels):
     """
-    Processes a single folder containing bubble run data.
-
-    Args:
-        folder_path (str): Path to the folder containing the data files.
-        plot (bool): Whether to generate plots during processing.
-        labels (bool): Whether to process labels.
-
-    Returns:
-        pd.DataFrame: A DataFrame containing the processed bubble data.
+    Processes all runs in a folder and returns a combined DataFrame.
     """
-    bin_file, binlog_file, evt_file, run_name = find_files(input_path)
+    bin_files, binlog_files, evt_files, run_names = find_all_runs(input_path)
+    all_dfs = []
 
-    binlogdata = get_binlogdata(binlog_file)
-    coef1 = binlogdata["channelCoef1"]
-    coef2 = binlogdata["channelCoef2"]
-    flowRate = binlogdata["flowRate"]
-    acquisitionFrequency = binlogdata["acquisitionFrequency"]
+    for i in range(len(bin_files)):
+        binlogdata = get_binlogdata(binlog_files[i])
+        coef1 = binlogdata["channelCoef1"]
+        coef2 = binlogdata["channelCoef2"]
+        flowRate = binlogdata["flowRate"]
+        acquisitionFrequency = binlogdata["acquisitionFrequency"]
 
-    print(binlogdata)
+        print(f"Processing run: {run_names[i]}")
+        print(binlogdata)
 
-    extracted_bubbles = get_bubbles_advanced(bin_file, coef1, coef2, plot, output_path, run_name)
+        extracted_bubbles = get_bubbles_advanced(
+            bin_files[i], coef1, coef2, plot, output_path, run_names[i]
+        )
 
-    if labels:
-        bubble_labels = get_labels(evt_file)
-    else:
-       bubble_labels = None 
+        bubble_labels = get_labels(evt_files[i]) if labels else None
 
-    save_bubbles_df = save_bubbles(extracted_bubbles, run_name, output_path, bubble_labels, flowRate, acquisitionFrequency)
+        df = save_bubbles(
+            extracted_bubbles, run_names[i], output_path,
+            bubble_labels, flowRate, acquisitionFrequency
+        )
+        all_dfs.append(df)
+
+    # Combine all DataFrames
+    final_df = pd.concat(all_dfs, ignore_index=True)
+
+    # Save ZIP (if needed for all runs)
     zip_all_csv_files(output_path)
-    return save_bubbles_df
 
+    return final_df
 def process_folder_new(input_path, output_path, plot, labels):
     """
     Processes a single folder containing bubble run data.
