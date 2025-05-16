@@ -404,14 +404,14 @@ def save_bubbles(extracted_bubbles, run_name, folder_path, bubble_labels, flow_r
     return saved_bubbles
 
 
-def process_folder(input_path, output_path, plot, labels):
+def process_folder(input_path, output_path, files, plot, labels):
     """
     Processes all runs in a folder and returns a combined DataFrame.
     """
     bin_files, binlog_files, evt_files, run_names = find_all_runs(input_path)
     all_dfs = []
 
-    for i in range(len(bin_files)):
+    for i in files:
         binlogdata = get_binlogdata(binlog_files[i])
         coef1 = binlogdata["channelCoef1"]
         coef2 = binlogdata["channelCoef2"]
@@ -428,7 +428,7 @@ def process_folder(input_path, output_path, plot, labels):
         bubble_labels = get_labels(evt_files[i]) if labels else None
 
         df = save_bubbles(
-            extracted_bubbles, run_names[i], output_path,
+            extracted_bubbles, run_names[i+1], output_path,
             bubble_labels, flowRate, acquisitionFrequency
         )
         all_dfs.append(df)
