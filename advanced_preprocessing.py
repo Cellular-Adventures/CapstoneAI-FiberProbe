@@ -375,8 +375,8 @@ def save_second_scaler(data):
     target_scaler = StandardScaler()
     X, y = valid_velo_data(data)
     
-    X_train_val, X_test, y_train_val, y_test = train_test_split(X, y, train_size=0.75, random_state=0)
-    X_train, X_val, y_train, y_val = train_test_split(X_train_val, y_train_val, train_size=0.67, random_state=0)
+    X_train_val, X_test, y_train_val, y_test = train_test_split(X, y, train_size=0.90, random_state=0)
+    X_train, X_val, y_train, y_val = train_test_split(X_train_val, y_train_val, train_size=0.75, random_state=0)
     X_train_scaled = feature_scaler.fit_transform(X_train)
     y_train_scaled = target_scaler.fit_transform(y_train.reshape(-1, 1)).flatten()
     X_val_scaled = feature_scaler.transform(X_val)
