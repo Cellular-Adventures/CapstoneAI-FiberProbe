@@ -196,10 +196,10 @@ def get_bubbles_advanced(bin_file, coef1, coef2, plot=False, folder_path=None, r
     peaks, _ = find_peaks(-gradient, prominence=0.005, distance=1000) 
 
     tE = peaks * downsample_factor
-    tE1 = tE - 1000
+    tE1 = tE - 400
     tE1 = tE1[tE1 >= 0] 
 
-    tE0 = tE1 - 4000
+    tE0 = tE1 - 600
     tE0 = tE0[tE0 >= 0] 
 
     bubbles = []
@@ -304,11 +304,11 @@ def plot_bubble_detection(voltage_data, tE, tE1, tE0, n, folder_path, run_name):
     # Save the plot to the folder
     plot_file_name = f"{run_name}_bubbles_plot.png"
     plot_file_path = os.path.join(folder_path, plot_file_name)
-    plt.savefig(plot_file_path, dpi=300)
-    print(f"Plot saved to {plot_file_path}")
+    #plt.savefig(plot_file_path, dpi=300)
+    #print(f"Plot saved to {plot_file_path}")
 
     # Close the plot to free memory and allow the code to continue
-    plt.close()
+    plt.show()
 
 
 def save_bubbles(extracted_bubbles, run_name, folder_path, bubble_labels, flow_rate, frequency):
@@ -384,8 +384,8 @@ def save_bubbles(extracted_bubbles, run_name, folder_path, bubble_labels, flow_r
     else:
         file_name = os.path.join(folder_path, f"{flow_rate}_bubbles.csv")
     
-    saved_bubbles.to_csv(file_name, index=False, sep=";")
-    print(f"Saved bubbles to {file_name}")
+    #saved_bubbles.to_csv(file_name, index=False, sep=";")
+    #print(f"Saved bubbles to {file_name}")
 
     if bubble_labels: 
         # Print missing labels
@@ -428,7 +428,7 @@ def process_folder(input_path, output_path, files, plot, labels):
         bubble_labels = get_labels(evt_files[i]) if labels else None
 
         df = save_bubbles(
-            extracted_bubbles, run_names[i+1], output_path,
+            extracted_bubbles, run_names[i], output_path,
             bubble_labels, flowRate, acquisitionFrequency
         )
         all_dfs.append(df)
@@ -437,7 +437,7 @@ def process_folder(input_path, output_path, files, plot, labels):
     final_df = pd.concat(all_dfs, ignore_index=True)
 
     # Save ZIP (if needed for all runs)
-    zip_all_csv_files(output_path)
+    #zip_all_csv_files(output_path)
 
     return final_df
 def process_folder_new(input_path, output_path, plot, labels):
@@ -470,7 +470,7 @@ def process_folder_new(input_path, output_path, plot, labels):
        bubble_labels = None 
 
     save_bubbles_df = save_bubbles(extracted_bubbles, run_name, output_path, bubble_labels, flowRate, acquisitionFrequency)
-    zip_all_csv_files(output_path)
+    #zip_all_csv_files(output_path)
     return save_bubbles_df
 
 def zip_all_csv_files(main_folder):
