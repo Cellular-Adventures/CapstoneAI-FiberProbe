@@ -17,7 +17,7 @@ class GRUModel(torch.nn.Module):
         self.num_layers = num_layers
 
     def forward(self, x):
-        h_0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(device)
+        h_0 = torch.zeros(self.num_layers, x.shape[0], self.hidden_size).to(device)
         out, _ = self.gru(x, h_0)
         out = self.fc(out[:, -1, :])
         return out
@@ -32,14 +32,48 @@ class LSTMModel(torch.nn.Module):
         self.fc = torch.nn.Linear(hidden_size, 1)
     
     def forward(self, x):
-        h_0 = torch.zeros(self.lstm.num_layers, x.size(0), self.lstm.hidden_size).to(x.device)
-        c_0 = torch.zeros(self.lstm.num_layers, x.size(0), self.lstm.hidden_size).to(x.device)
+        h_0 = torch.zeros(self.lstm.num_layers, x.shape[0], self.lstm.hidden_size).to(x.device)
+        c_0 = torch.zeros(self.lstm.num_layers, x.shape[0], self.lstm.hidden_size).to(x.device)
         
         out, _ = self.lstm(x, (h_0, c_0))
         out = out[:, -1, :]  # Selecting the last time step's output
         out = self.fc(out)
         
         return out
+
+class CNNModel(torch.nn.Module):
+    def __init__(self, input_channels=1, hidden_units=32, kernel_size=3, num_layers=2, input_length=150, output_size=1):
+        super(CNNModel, self).__init__()
+        self.layers = torch.nn.ModuleList()
+        current_channels = input_channels
+
+        for _ in range(num_layers):
+            self.layers.append(torch.nn.Conv1d(current_channels, hidden_units, kernel_size=kernel_size, padding=kernel_size // 2))
+            self.layers.append(torch.nn.ReLU())
+            self.layers.append(torch.nn.MaxPool1d(kernel_size=2))
+            current_channels = hidden_units
+
+        # Dynamically calculate flattened size
+        self._dummy_input = torch.zeros(1, input_channels, input_length)
+        with torch.no_grad():
+            dummy_output = self._forward_features(self._dummy_input)
+        flattened_size = dummy_output.view(1, -1).size(1)
+
+        self.fc1 = torch.nn.Linear(flattened_size, 64)
+        self.fc2 = torch.nn.Linear(64, output_size)
+
+    def _forward_features(self, x):
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+    def forward(self, x):
+        x = x.permute(0, 2, 1)  # [batch_size, channels, length]
+        x = self._forward_features(x)
+        x = x.view(x.size(0), -1)  # Flatten
+        x = torch.nn.functional.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
 
 
 # Maybe change the function so it automatically finds the feature scaler and model files?
