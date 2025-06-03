@@ -42,6 +42,7 @@ class LSTMModel(torch.nn.Module):
         return out
 
 class CNNModel(torch.nn.Module):
+    # input should be [batch_size, number of timesteps, number of features]
     def __init__(self, input_channels=1, hidden_units=32, kernel_size=3, num_layers=2, input_length=150, output_size=1):
         super(CNNModel, self).__init__()
         self.layers = torch.nn.ModuleList()
@@ -53,7 +54,6 @@ class CNNModel(torch.nn.Module):
             self.layers.append(torch.nn.MaxPool1d(kernel_size=2))
             current_channels = hidden_units
 
-        # Dynamically calculate flattened size
         self._dummy_input = torch.zeros(1, input_channels, input_length)
         with torch.no_grad():
             dummy_output = self._forward_features(self._dummy_input)
