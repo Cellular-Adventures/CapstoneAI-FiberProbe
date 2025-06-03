@@ -216,6 +216,62 @@ def get_bubbles_advanced(bin_file, coef1, coef2, plot=False, folder_path=None, r
 
     return bubbles
 
+def get_bubbles_advanced_check(bin_file, coef1, coef2, plot=False, folder_path=None, run_name=None):
+    """
+    Extracts bubble entries and exits implementing dual-thresholding strategy.
+
+    Args:
+        bin_file (str): Path to the binary file (.bin).
+        coef1 (float): Channel coefficient 1 (offset).
+        coef2 (float): Channel coefficient 2 (scaling factor).
+        plot (bool): Whether to plot the results. Defaults to False.
+        folder_path (str, optional): Path to the folder where the plot will be saved. Required if plot=True.
+        run_name (str, optional): Name of the run for naming the plot file. Required if plot=True.
+    
+    Returns:
+        list: Extracted bubble data.
+    """
+    trans_data = np.memmap(bin_file, dtype=">i2", mode="r")
+    voltage_data = (trans_data.astype(np.float32) * coef2 + coef1)
+    print(f"{len(voltage_data)} datapoints extracted")
+
+    downsample_factor = 5
+    voltage_data_downsampled = voltage_data[::downsample_factor]
+
+    # Apply moving average for additional smoothing
+    window_size = 100 
+    kernel = np.ones(window_size) / window_size
+    smoothed_voltage_data = np.convolve(voltage_data_downsampled, kernel, mode='valid')
+    smoothed_voltage_data = np.concatenate((np.full(window_size - 1, smoothed_voltage_data[0]), smoothed_voltage_data))
+
+    # Compute the gradient of the smoothed and averaged data
+    gradient = np.gradient(smoothed_voltage_data)
+
+    # Detect peaks in the negative gradient
+    peaks, _ = find_peaks(-gradient, prominence=0.005, distance=1000) 
+
+    tE = peaks * downsample_factor
+    tE1 = tE
+    tE1 = tE1[tE1 >= 0] 
+
+    tE0 = tE1 - 1600
+    tE0 = tE0[tE0 >= 0] 
+
+    bubbles = []
+    for idx, (start, end, peak) in enumerate(zip(tE0, tE1, tE)):
+        if start >= 0 and end < len(voltage_data):
+            voltage_out = voltage_data[start:end].tolist() 
+            bubbles.append(["E"+str(idx), peak, voltage_out])
+
+    # Plot if requested
+    if plot:
+        if folder_path is None or run_name is None:
+            raise ValueError("Both `folder_path` and `run_name` must be provided when plot=True.")
+        plot_bubble_detection(voltage_data, tE, tE1, tE0, n=5000000, folder_path=folder_path, run_name=run_name)
+
+    return bubbles
+
+
 def plot_bubble_detection(voltage_data, tE, tE1, tE0, n, folder_path, run_name):
     """
     Plots the results of the voltage data and all detected peaks, saves the plot, and allows code execution to continue.
@@ -387,40 +443,45 @@ def process_folder(input_path, output_path, files, plot, labels):
     # Save ZIP (if needed for all runs)
     #zip_all_csv_files(output_path)
 
-    return final_df
-def process_folder_new(input_path, output_path, plot, labels):
+    return final_df 
+
+
+def process_folder_check(input_path, output_path, files, plot, labels):
     """
-    Processes a single folder containing bubble run data.
-
-    Args:
-        folder_path (str): Path to the folder containing the data files.
-        plot (bool): Whether to generate plots during processing.
-        labels (bool): Whether to process labels.
-
-    Returns:
-        pd.DataFrame: A DataFrame containing the processed bubble data.
+    Processes all runs in a folder and returns a combined DataFrame.
     """
-    bin_file, binlog_file, evt_file, run_name = find_files(input_path)
+    bin_files, binlog_files, evt_files, run_names = find_all_runs(input_path)
+    all_dfs = []
 
-    binlogdata = get_binlogdata(binlog_file)
-    coef1 = binlogdata["channelCoef1"]
-    coef2 = binlogdata["channelCoef2"]
-    flowRate = binlogdata["flowRate"]
-    acquisitionFrequency = binlogdata["acquisitionFrequency"]
+    for i in files:
+        binlogdata = get_binlogdata(binlog_files[i])
+        coef1 = binlogdata["channelCoef1"]
+        coef2 = binlogdata["channelCoef2"]
+        flowRate = binlogdata["flowRate"]
+        acquisitionFrequency = binlogdata["acquisitionFrequency"]
 
-    print(binlogdata)
+        print(f"Processing run: {run_names[i]}")
+        print(binlogdata)
 
-    extracted_bubbles = get_bubbles_advanced_full(bin_file, coef1, coef2, plot, output_path, run_name)
+        extracted_bubbles = get_bubbles_advanced_check(
+            bin_files[i], coef1, coef2, plot, output_path, run_names[i]
+        )
 
-    if labels:
-        bubble_labels = get_labels(evt_file)
-    else:
-       bubble_labels = None 
+        bubble_labels = get_labels(evt_files[i]) if labels else None
 
-    save_bubbles_df = save_bubbles(extracted_bubbles, run_name, output_path, bubble_labels, flowRate, acquisitionFrequency)
+        df = save_bubbles(
+            extracted_bubbles, run_names[i], output_path,
+            bubble_labels, flowRate, acquisitionFrequency
+        )
+        all_dfs.append(df)
+
+    # Combine all DataFrames
+    final_df = pd.concat(all_dfs, ignore_index=True)
+
+    # Save ZIP (if needed for all runs)
     #zip_all_csv_files(output_path)
-    return save_bubbles_df
 
+    return final_df
 def zip_all_csv_files(main_folder):
     """
     Zip all CSV files in the main folder and its subfolders into a single ZIP file,
