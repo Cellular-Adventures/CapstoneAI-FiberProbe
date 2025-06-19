@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import torch
+from advanced_preprocessing import valid_velo_data
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -75,114 +76,94 @@ class CNNModel(torch.nn.Module):
         x = self.fc2(x)
         return x
 
-
-# Maybe change the function so it automatically finds the feature scaler and model files?
-def get_results(input_folder_path, model_folder_path, jump=900, 
-                plot_hist=False, n_bins=20):
-    """Plots the final results as an average of three models.
-    
-    Args:
-        input_folder_path: path to folder containing the .bin file
-        model_folder_path: path that leads to the model folder where the three models (.h5 files) and scalers (.pkl files) are stored.
-        jump: parameter for the preprocessing. Not recommended to change it, unless you get indexing errors (then lower the value).
-        plot_hist: Will plot a histogram if set to True
-        n_bins: Amount of bins in the histogram
-
-    Output:
-        dataframe with predictions of 3 models, final prediction, true prediction and standard deviation
-    """
-    if jump != 900:
-        print(f"Note: jump is usually set at 900 because it leads to less noisy data and therefore better predictions.")
-        print(f"However, jump is now set at {jump}. Only change the value of jump to a lower value if you get indexing errors!")
-    # TO DO:
-    # Function that finds path to files in the folder
-    # Segment bubbles from .bin file
-    # X_test = preprocessing.frame_waves(X_test, "out", length=150, jump=jump) # TO DO
-    
-    # Loading the models
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Using device: {device}")
-
-    model_1 = GRUModel(1, 20, num_layers=2)
-    model_1.load_state_dict(torch.load(model_folder_path+r'\GRU_lr0.01_H20_norm2_nlayer2.h5', map_location=torch.device('cpu')))
-
-    model_2 = torch.load(model_folder_path+r"\full_LSTM_lr0.008_H30_norm3_nlayer2.h5", map_location=torch.device('cpu'))
-
-    model_3 = GRUModel(1, 20, num_layers=2)
-    model_3.load_state_dict(torch.load(model_folder_path+r"\GRU_lr0.02_H20_norm3_nlayer2.h5", map_location=torch.device('cpu')))
-
-    # Import StandardScalers with scaling parameters of the training set
-    with open(model_folder_path+r"\feature_scaler.pkl", 'rb') as file: # maybe adjust path
-        loaded_feature_scaler = pickle.load(file)
-        
-    with open(model_folder_path+r'\target_scaler.pkl', 'rb') as file: # maybe adjust path
-        loaded_target_scaler = pickle.load(file)
-
-    # Making model predictions
-    model_1.eval()
-    model_2.eval()
-    model_3.eval()
-    X_test = loaded_feature_scaler.transform(X_test)
-    X_test = torch.tensor(X_test[...,np.newaxis], dtype=torch.float32)
-    model_1.to(device)
-    model_2.to(device)
-    model_3.to(device)
-
-    with torch.no_grad():
-        predictions_1 = model_1(X_test)
-        predictions_2 = model_2(X_test)
-        predictions_3 = model_3(X_test)
-        
-    # Returning to original scale
-    predictions_1 = loaded_target_scaler.inverse_transform(predictions_1.reshape(-1,1)).flatten()
-    predictions_2 = loaded_target_scaler.inverse_transform(predictions_2.reshape(-1,1)).flatten()
-    predictions_3 = loaded_target_scaler.inverse_transform(predictions_3.reshape(-1,1)).flatten()
-
-    # Making the dataframe with the mean
-    combined_df = {"predictions model 1": predictions_1, "predictions model 2": predictions_2, 
-                   "predictions model 3": predictions_3}
-    combined_df["final prediction"] = combined_df[["predictions model 1", 
-                                                   "predictions model 2", 
-                                                   "predictions model 3"]].mean(axis=1)
-    combined_df["standard deviation"] = combined_df[["predictions model 1", 
-                                                   "predictions model 2", 
-                                                   "predictions model 3"]].std(axis=1)
-
-    if plot_hist:
-        # Plotting a histogram
-        predictions = combined_df["final prediction"].tolist()
-        plt.hist(predictions, bins=n_bins, alpha=0.5, edgecolor="black", label="prediction")
-        plt.xlabel("velocity")
-        plt.legend()
-        plt.show()
-    
-    return combined_df
-
 def load_scalers():
-    with open(r'advanced_scalers\feature_scaler_1.pkl', 'rb') as feature_file:
-        feature_scaler1 = pickle.load(feature_file)
-    with open(r'advanced_scalers\target_scaler_1.pkl', 'rb') as target_file:
-        target_scaler1 = pickle.load(target_file)
-    with open(r'advanced_scalers\feature_scaler_2.pkl', 'rb') as feature_file:
-        feature_scaler2 = pickle.load(feature_file)
-    return feature_scaler1, target_scaler1, feature_scaler2
+    with open('scalers/feature_scaler2-20%3_600.pkl', 'rb') as f:
+        feature_scaler = pickle.load(f)
+    
+    with open('scalers/target_scaler2-20%3_600.pkl', 'rb') as f:
+        target_scaler = pickle.load(f)
+    return feature_scaler, target_scaler
 
 def load_models():
-    #GRU1 = GRUModel(1, 20, num_layers=2)
-    #GRU1.load_state_dict(torch.load(r'advanced_model_files\GRU_lr0.01_H20_norm2_nlayer2.h5', map_location=torch.device('cpu')))
-    #GRU1 = torch.load(r'final_model_files\GRU_lr0.01_H20_norm2_nlayer2.h5', map_location=torch.device('cpu'))
-
-    #LSTM = torch.load(r"advanced_model_files\LSTM_lr0.005_H30_norm3_nlayer2.h5", map_location=torch.device('cpu'))
-    #LSTM = torch.load(r'final_model_files\full_LSTM_lr0.008_H30_norm3_nlayer2.h5', map_location=torch.device('cpu'))
-
-    #GRU2 = GRUModel(1, 20, num_layers=2)
-    #GRU2.load_state_dict(torch.load(r"advanced_model_files\GRU2_lr0.01_H20_norm1_nlayer2.h5", map_location=torch.device('cpu')))
-    #GRU2 = torch.load(r'final_model_files\GRU_lr0.02_H20_norm3_nlayer2.h5', map_location=torch.device('cpu'))
-    gru1 = torch.load(r'advanced_model_files\GRU_lr0.01_H20_norm2_nlayer2.h5', map_location=torch.device('cpu'), weights_only=False)
-    gru2 = torch.load(r'advanced_model_files\GRU2_lr0.01_H20_norm1_nlayer2.h5', map_location=torch.device('cpu'), weights_only=False)
-    lstm = torch.load(r"advanced_model_files\LSTM_lr0.005_H30_norm3_nlayer2.h5", map_location=torch.device('cpu'), weights_only=False)
+    gru1 = GRUModel(input_size=1, hidden_size=20, num_layers=2)
+    gru1.load_state_dict(torch.load("models/gru28-5_2-20%3_is1_ns20_nl2_lr0.004_ep7500_r20.9982", map_location='cpu'))
+    gru1.eval()
     
+    gru2 = GRUModel(input_size=1, hidden_size=10, num_layers=3)
+    gru2.load_state_dict(torch.load("models/gru28-5_2-20%3_is1_ns10_nl3_lr0.005_ep31776es_r20.9981", map_location='cpu'))
+    gru2.eval()
+    
+    lstm = LSTMModel(input_size=1, hidden_size=18, num_layers=2)
+    lstm.load_state_dict(torch.load("models/lstm3-6_2-20%3_is1_ns18_nl2_lr0.005_ep50000_r20.9972", map_location='cpu'))
+    lstm.eval()
+    
+    cnn1 = CNNModel(input_channels=1, hidden_units=32, kernel_size=9, num_layers=7, input_length=600, output_size=1)
+    cnn1.load_state_dict(torch.load("models/cnn27-5_2-20%3_ic1_hu32_ks9_nl7_lr0.0016_ep10000_r20.9987", map_location='cpu'))
+    cnn1.eval()
+    
+    cnn2 = CNNModel(input_channels=1, hidden_units=64, kernel_size=15, num_layers=5, input_length=600, output_size=1)
+    cnn2.load_state_dict(torch.load("models/cnns-6_2-20%3_ic1_hu64_ks15_nl5_lr0.001_ep10000_r20.9983", map_location='cpu'))
+    cnn2.eval()
 
-    return gru1, gru2, lstm
+    return gru1, gru2, lstm, cnn1, cnn2
+
+def predict(gru1, gru2, lstm, cnn1, cnn2, target_scaler, feature_scaler, X_tensor, df):
+    with torch.no_grad():  
+        y_gru1_scaled = gru1(X_tensor)
+        y_gru2_scaled = gru2(X_tensor)
+        y_lstm_scaled = lstm(X_tensor)
+        y_cnn1_scaled = cnn1(X_tensor)
+        y_cnn2_scaled = cnn2(X_tensor)
+    y_gru1 = target_scaler.inverse_transform(y_gru1_scaled.detach().cpu().numpy().reshape(-1, 1)).flatten()
+    y_gru2 = target_scaler.inverse_transform(y_gru2_scaled.detach().cpu().numpy().reshape(-1, 1)).flatten()
+    y_lstm = target_scaler.inverse_transform(y_lstm_scaled.detach().cpu().numpy().reshape(-1, 1)).flatten()
+    y_cnn1 = target_scaler.inverse_transform(y_cnn1_scaled.detach().cpu().numpy().reshape(-1, 1)).flatten()
+    y_cnn2 = target_scaler.inverse_transform(y_cnn2_scaled.detach().cpu().numpy().reshape(-1, 1)).flatten()
+    
+    y_pred = ((y_lstm+y_gru1+y_gru2+y_cnn1+y_cnn2)/5).flatten()
+    outcome_df = pd.DataFrame({"predictions model 1": y_gru1, "predictions model 2": y_gru2, "predictions model 3": y_lstm, "predictions model 4":y_cnn1, "predictions model 5":y_cnn2, "final prediction": y_pred})
+    outcome_df['Standard deviation'] = outcome_df[["predictions model 1", "predictions model 2", "predictions model 3","predictions model 4"]].std(axis=1)
+    outcome_df['Standard deviation %'] = outcome_df['Standard deviation'] / outcome_df['final prediction'] * 100
+    
+    print(outcome_df.head(10))
+    
+    # Evaluation metrics (remove '''...''' if interested)
+    valid_bubbles_ai = len(outcome_df[outcome_df['Standard deviation %'] < 10])/len(outcome_df) * 100
+    valid_bubbles_boring_software = len(valid_velo_data(df)[0])/len(df) * 100
+    
+    X_velo, y_velo = valid_velo_data(df)
+    X_velo_scaled = torch.tensor(feature_scaler.transform(X_velo)[...,np.newaxis], dtype=torch.float32)
+    with torch.no_grad():  
+            y_gru1_scaled_velo = gru1(X_velo_scaled)
+            y_gru2_scaled_velo = gru2(X_velo_scaled)
+            y_lstm_scaled_velo = lstm(X_velo_scaled)
+            y_cnn1_scaled_velo = cnn1(X_velo_scaled)
+            y_cnn2_scaled_velo = cnn2(X_velo_scaled)
+    y_gru1_velo = target_scaler.inverse_transform(y_gru1_scaled_velo.detach().cpu().numpy().reshape(-1, 1)).flatten()
+    y_gru2_velo = target_scaler.inverse_transform(y_gru2_scaled_velo.detach().cpu().numpy().reshape(-1, 1)).flatten()
+    y_lstm_velo = target_scaler.inverse_transform(y_lstm_scaled_velo.detach().cpu().numpy().reshape(-1, 1)).flatten()
+    y_cnn1_velo = target_scaler.inverse_transform(y_cnn1_scaled_velo.detach().cpu().numpy().reshape(-1, 1)).flatten()
+    y_cnn2_velo = target_scaler.inverse_transform(y_cnn2_scaled_velo.detach().cpu().numpy().reshape(-1, 1)).flatten()
+    y_pred_velo = ((y_lstm_velo+y_gru1_velo+y_gru2_velo+y_cnn1_velo++y_cnn2_velo)/5).flatten()
+    outcome_df_valid = pd.DataFrame({"predictions model 1": y_gru1_velo, "predictions model 2": y_gru2_velo, "predictions model 3": y_lstm_velo, "predictions model 4":y_cnn1_velo, "predictions model 5":y_cnn2_velo, "final prediction": y_pred_velo})
+    outcome_df_valid['Standard deviation'] = outcome_df_valid[["predictions model 1", "predictions model 2", "predictions model 3", "predictions model 4"]].std(axis=1)
+    outcome_df_valid['Standard deviation %'] = outcome_df_valid['Standard deviation'] / outcome_df_valid['final prediction'] * 100
+    outcome_df_valid["abs_error"] = np.abs(outcome_df_valid["final prediction"] - y_velo) / y_velo
+    valid_test_results_10 = outcome_df_valid[
+        (outcome_df_valid["Standard deviation"] / outcome_df_valid["final prediction"] <= 0.1) &
+        (outcome_df_valid["abs_error"] <= 0.1)
+    ]
+    valid_test_results_5 = outcome_df_valid[
+        (outcome_df_valid["Standard deviation"] / outcome_df_valid["final prediction"] <= 0.1) &
+        (outcome_df_valid["abs_error"] <= 0.05)
+    ]
+    filtered_outcome_df = outcome_df_valid[outcome_df_valid['Standard deviation %'] < 10]
+    average_percentage_std = filtered_outcome_df['Standard deviation %'].mean()
+    
+    print(f"Percentage found valid bubbles (uncertainty < 10%) with speed difference <10% from truth:  {len(valid_test_results_10) / (len(outcome_df_valid)) * 100:.4f} %")
+    print(f"Percentage found valid bubbles (uncertainty < 10%) with speed difference <5% from truth:  {len(valid_test_results_5) / (len(outcome_df_valid)) * 100:.4f} %")
+    print(f'Percentage AI found valid bubbles (uncertainty < 10%): {valid_bubbles_ai:.4f} % vs M2 analyzer: {valid_bubbles_boring_software:.4f} %, improvement: {((valid_bubbles_ai - valid_bubbles_boring_software)/valid_bubbles_boring_software)*100:.4f} %')
+    print(f'Model uncertainty (average uncertainty of valid bubbles): {average_percentage_std:.4f} % with {len(filtered_outcome_df) / len(outcome_df_valid) * 100:.2f} % of the labled samples')
+    return outcome_df, outcome_df_valid, valid_test_results_10, y_velo
+
 
