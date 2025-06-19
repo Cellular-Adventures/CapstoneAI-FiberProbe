@@ -1,4 +1,4 @@
-### Start user inpu ###
+### Start user input ###
 path_to_data = r'U:\Bubble Column\Data\2411_Xray alcohols\Fiber Probe\241108 - Water center of column'
 path_to_output = r'H:\My Documents\Capstone results'
 files = [3]
