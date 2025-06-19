@@ -77,32 +77,32 @@ class CNNModel(torch.nn.Module):
         return x
 
 def load_scalers():
-    with open('scalers/feature_scaler2-20%3_600.pkl', 'rb') as f:
+    with open('advanced_scalers/feature_scaler.pkl', 'rb') as f:
         feature_scaler = pickle.load(f)
     
-    with open('scalers/target_scaler2-20%3_600.pkl', 'rb') as f:
+    with open('advanced_scalers/target_scaler.pkl', 'rb') as f:
         target_scaler = pickle.load(f)
     return feature_scaler, target_scaler
 
 def load_models():
     gru1 = GRUModel(input_size=1, hidden_size=20, num_layers=2)
-    gru1.load_state_dict(torch.load("models/gru28-5_2-20%3_is1_ns20_nl2_lr0.004_ep7500_r20.9982", map_location='cpu'))
+    gru1.load_state_dict(torch.load("advanced_models/gru1.h5", map_location='cpu'))
     gru1.eval()
     
     gru2 = GRUModel(input_size=1, hidden_size=10, num_layers=3)
-    gru2.load_state_dict(torch.load("models/gru28-5_2-20%3_is1_ns10_nl3_lr0.005_ep31776es_r20.9981", map_location='cpu'))
+    gru2.load_state_dict(torch.load("advanced_models/gru2.h5", map_location='cpu'))
     gru2.eval()
     
     lstm = LSTMModel(input_size=1, hidden_size=18, num_layers=2)
-    lstm.load_state_dict(torch.load("models/lstm3-6_2-20%3_is1_ns18_nl2_lr0.005_ep50000_r20.9972", map_location='cpu'))
+    lstm.load_state_dict(torch.load("advanced_models/lstm.h5", map_location='cpu'))
     lstm.eval()
     
     cnn1 = CNNModel(input_channels=1, hidden_units=32, kernel_size=9, num_layers=7, input_length=600, output_size=1)
-    cnn1.load_state_dict(torch.load("models/cnn27-5_2-20%3_ic1_hu32_ks9_nl7_lr0.0016_ep10000_r20.9987", map_location='cpu'))
+    cnn1.load_state_dict(torch.load("advanced_models/cnn1.h5", map_location='cpu'))
     cnn1.eval()
     
     cnn2 = CNNModel(input_channels=1, hidden_units=64, kernel_size=15, num_layers=5, input_length=600, output_size=1)
-    cnn2.load_state_dict(torch.load("models/cnns-6_2-20%3_ic1_hu64_ks15_nl5_lr0.001_ep10000_r20.9983", map_location='cpu'))
+    cnn2.load_state_dict(torch.load("advanced_models/cnn2.h5", map_location='cpu'))
     cnn2.eval()
 
     return gru1, gru2, lstm, cnn1, cnn2
