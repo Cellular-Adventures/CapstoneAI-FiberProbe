@@ -10,46 +10,20 @@ import zipfile
 ########################################################
 # TABLE OF CONTENTS
 
-# find_files: Locate and extract file paths for `.bin`, `.binlog`, and `.evt` files from a folder.
+# find_all_runs: Finds all runs in the folder path.
 # get_binlogdata: Parse `.binlog` files to extract metadata such as coefficients, frequency, and comments.
 # get_labels: Extract bubble labels from `.evt` files with valid velocities (`VeloOut != -1`).
 # get_bubbles_advanced: Extract bubble entries and exits using a dual-thresholding strategy. 
 #                       Includes downsampling, smoothing, gradient computation, and peak detection. 
 #                       Optionally plots results and saves the plot.
+# get_bubbles_advanced_check: Same as get_bubbles_advanced, but selects a bigger ROI, for visualization purposes 
 # plot_bubble_detection: Visualize voltage data, detected peaks, and entry/exit points. 
 #                        Saves the plot in the specified folder.
 # save_bubbles: Save extracted bubble data into a CSV file. Match bubble data with labels and identify missing labels.
 # process_folder: Process a single folder containing bubble run data and generate a CSV.
-# process_main_folder: Process all subfolders in a main folder. Combine data from all folders into a single CSV file.
-# zip_all_csv_files: Zip all CSV files in the main folder and its subfolders into a single ZIP file.
-# Main Execution: Process the main folder with all subfolders, generate combined CSV, and ZIP file.
+# process_folder_check: same as process_folder but uses get_bubbles_advanced_check.
 ########################################################
-
-
-def find_files(folder_path):
-    """
-    Find relevant files paths and the run name in given folder
-
-    Args:
-        folder_path (str): Path to the input folder.
-
-    Returns:
-        tuple: Paths to .bin_file, .binlog_file .evtlog_file and the run_name
-    """
-    
-    bin_file = binlog_file = run_name = evt_file = None
-
-    for file in os.listdir(folder_path):
-        if file.endswith(".bin") and "_stream" not in file:
-            bin_file = os.path.join(folder_path, file)
-            run_name = os.path.splitext(file)[0]
-        elif file.endswith(".binlog"):
-            binlog_file = os.path.join(folder_path, file)
-        elif file.endswith(".evt") and "_stream" not in file:
-            evt_file = os.path.join(folder_path, file)
-        
-    return bin_file, binlog_file, evt_file, run_name 
-
+ 
 def find_all_runs(folder_path):
     """
     Find all sets of (.bin, .binlog, .evt) files in the given folder.
@@ -308,8 +282,8 @@ def plot_bubble_detection(voltage_data, tE, tE1, tE0, n, folder_path, run_name):
     # Save the plot to the folder
     plot_file_name = f"{run_name}_bubbles_plot.png"
     plot_file_path = os.path.join(folder_path, plot_file_name)
-    #plt.savefig(plot_file_path, dpi=300)
-    #print(f"Plot saved to {plot_file_path}")
+    plt.savefig(plot_file_path, dpi=300)
+    print(f"Plot saved to {plot_file_path}")
 
     # Close the plot to free memory and allow the code to continue
     plt.show()
@@ -389,7 +363,7 @@ def save_bubbles(extracted_bubbles, run_name, folder_path, bubble_labels, flow_r
         file_name = os.path.join(folder_path, f"{flow_rate}_bubbles.csv")
     
     #saved_bubbles.to_csv(file_name, index=False, sep=";")
-    #print(f"Saved bubbles to {file_name}")
+    print(f"Saved bubbles to {file_name}")
 
     if bubble_labels: 
         # Print missing labels
@@ -410,7 +384,15 @@ def save_bubbles(extracted_bubbles, run_name, folder_path, bubble_labels, flow_r
 
 def process_folder(input_path, output_path, files, plot, labels):
     """
-    Processes all runs in a folder and returns a combined DataFrame.
+    Processes selected runs in a folder and returns a combined DataFrame.
+    Args:
+        input_path: Path to the folder containg the runs
+        ouput_path: path to the folder where you want the results to be saved
+        files (list): List of the runs you want to be used from the folder, starting with 0. If there is only one run in the folder: files = [0]
+        plot (bool): If True: Plots the results of the voltage data and all detected peaks, saves the plot, and allows code execution to continue.
+        labels (bool): If True: Extracts bubble labels with VeloOut != -1 from the evt_file.
+    Returns:
+        pd.DataFrame: A DataFrame containing [bubble_idx, B_idx, L_idx, VeloOut, VoltageOut, flowRate, Frequency].
     """
     bin_files, binlog_files, evt_files, run_names = find_all_runs(input_path)
     all_dfs = []
@@ -439,16 +421,22 @@ def process_folder(input_path, output_path, files, plot, labels):
 
     # Combine all DataFrames
     final_df = pd.concat(all_dfs, ignore_index=True)
-
-    # Save ZIP (if needed for all runs)
-    #zip_all_csv_files(output_path)
+    
 
     return final_df 
 
 
 def process_folder_check(input_path, output_path, files, plot, labels):
     """
-    Processes all runs in a folder and returns a combined DataFrame.
+    Processes selected runs in a folder and returns a combined DataFrame.
+    Args:
+        input_path: Path to the folder containg the runs
+        ouput_path: path to the folder where you want the results to be saved
+        files (list): List of the runs you want to be used from the folder, starting with 0. If there is only one run in the folder: files = [0]
+        plot (bool): If True: Plots the results of the voltage data and all detected peaks, saves the plot, and allows code execution to continue.
+        labels (bool): If True: Extracts bubble labels with VeloOut != -1 from the evt_file.
+    Returns:
+        pd.DataFrame: A DataFrame containing [bubble_idx, B_idx, L_idx, VeloOut, VoltageOut, flowRate, Frequency].
     """
     bin_files, binlog_files, evt_files, run_names = find_all_runs(input_path)
     all_dfs = []
@@ -478,77 +466,7 @@ def process_folder_check(input_path, output_path, files, plot, labels):
     # Combine all DataFrames
     final_df = pd.concat(all_dfs, ignore_index=True)
 
-    # Save ZIP (if needed for all runs)
-    #zip_all_csv_files(output_path)
-
     return final_df
-def zip_all_csv_files(main_folder):
-    """
-    Zip all CSV files in the main folder and its subfolders into a single ZIP file,
-    but include them all as if in a single flat directory.
-
-    Args:
-        main_folder (str): Path to the main folder containing subfolders with CSV files.
-    """
-    zip_path = os.path.join(main_folder, "All_bubbles.zip")
-    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for root, _, files in os.walk(main_folder):  
-            for file in files:
-                if file.endswith('.csv'):
-                    full_path = os.path.join(root, file)  
-                    arcname = os.path.basename(file)  
-                    zipf.write(full_path, arcname=arcname) 
-                    print(f"Added {full_path} to {zip_path} as {arcname}")
-
-    print(f"All CSV files in {main_folder} and its subfolders zipped as {zip_path}")
-
-#THIS FUNCTION IS FOR BATCH LABELING OF DATASETS
-def process_main_folder(main_folder_path, plot=False, labels=False):
-    """
-    Processes all subfolders in a main folder, saves individual CSVs, and combines all data.
-
-    Args:
-        main_folder_path (str): Path to the main folder containing subfolders with data.
-        plot (bool): Whether to generate plots during processing.
-        labels (bool): Whether to process labels.
-
-    Returns:
-        pd.DataFrame: A combined DataFrame containing data from all subfolders.
-    """
-    # Initialize a list to hold DataFrames from all subfolders
-    combined_data = []
-
-    # Loop through all subfolders in the main folder
-    for subfolder in os.listdir(main_folder_path):
-        subfolder_path = os.path.join(main_folder_path, subfolder)
-        if os.path.isdir(subfolder_path):  # Process only directories
-            print(f"Processing folder: {subfolder_path}")
-            try:
-                # Process the subfolder and save its DataFrame
-                df = process_folder(subfolder_path, plot=plot, labels=labels)
-                combined_data.append(df)
-            except Exception as e:
-                print(f"Error processing folder {subfolder_path}: {e}")
-
-    # Combine all DataFrames into one
-    if combined_data:
-        big_bubbles_data = pd.concat(combined_data, ignore_index=True)
-
-        # Save the combined DataFrame to the main folder
-        output_file = os.path.join(main_folder_path, "Combined_bubbles.csv")
-        big_bubbles_data.to_csv(output_file, index=False, sep=";")
-        print(f"Combined data saved to {output_file}")
-
-        return big_bubbles_data
-    else:
-        print("No valid data found to combine.")
-        return pd.DataFrame()
-#CURRENTLY NOT IN USE
-
-if __name__ == "__main__":
-    main_folder_path = R"C:\Users\TUDelft\Desktop\Main_bubbles\bubble_data"
-    big_bubbles_df = process_folder(main_folder_path, plot=True, labels=True)
-    print("Processing complete.")
 
 
 

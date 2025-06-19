@@ -16,113 +16,15 @@ import pickle
 ########################################################
 # TABLE OF CONTENTS
 
-# read_seperate_csv_from_zip
-# scale_time: makes sure all bubble arrays are equal size (! only needed for whole bubbles)
-# frame_waves: crops data so it zooms in on the waves
 # valid_velo_data: returns data and labels with only valid velocities
-# valid_velo_data_cropped: combines frame_waves and valid_velo_data
-# random_flip: duplicates and randomly flips some data
 # random_noise: duplicates and randomly adds noise to some data
 # bin_data: bins all y labels as data (does not regard X data) > part of flatten_data_distribution
 # calculate_duplication_factors: calculates how to scale data in bins > part of flatten_data_distribution
 # duplicate_and_augment_data: duplicates and augments data based on bin frequency > part of flatten_data_distribution
-# flatten_data_distribution > flattens the data distribution according to bin sizes, by augmenting and duplicating data
-
+# flatten_data_distribution: flattens the data distribution according to bin sizes, by augmenting and duplicating data
+# split_scale_save: splits the data into TVT sets, scales the data and provides the scalers
 ########################################################
 
-
-def read_seperate_csv_from_zip(zip_filename):
-    """
-    Read CSV files ending with '_seperate.csv' from a ZIP file.
-
-    Args:
-        zip_filename (str): Name of the CSV file.
-
-    Returns:
-        pd.DataFrame: DataFrame containing the data from the CSV file.
-    """
-    df = pd.read_csv(zip_filename, header=0, delimiter=';')
-    # converting the column with voltages (now seen as str) to lists
-    df["VoltageOut"] = df["VoltageOut"].apply(ast.literal_eval)
-    return df
-
-
-def scale_time(data, length=None):
-    """
-    Scales all data to <length> timesteps; adds padding to start and end of the signal.
-
-    Args: 
-        data: Numpy array with dimension [samples, datapoints]
-        length: length all samples will be changed into. length should be longer than the longest data signal.
-                if not fixed, it is 10 timesteps longer than the longest data signal.
-
-    Returns:
-        Numpy array with dimension [samples, datapoints] with <length> datapoints.
-    """
-    # if type(data) != type(np.zeros(3)):
-    #     data = np.array(data)
-    
-    if length is None:
-        length = max([len(sample) for sample in data]) + 10
-        print(f"No sample length was given, so length was automatically fixed at {length}")
-
-    # if data.ndim != 2:
-    #     raise ValueError("Data should be a 2D numpy array with dimensions [samples, datapoints]. (Hint: try to add .tolist() to input)")
-    
-    scaled_data = []
-    
-    for sample in data:
-        if len(sample) > length:
-            raise ValueError("There is a sample longer than the specified length")
-        
-        # Calculate padding
-        total_padding = length - len(sample)
-        pad_before = total_padding // 2
-        pad_after = total_padding - pad_before
-        
-        # Pad the sample
-        sample = np.array(sample)
-        padded_sample = np.pad(sample, (pad_before, pad_after), mode='edge')
-        scaled_data.append(padded_sample)
-    
-    return np.array(scaled_data)
-
-
-def frame_waves(data, length=500, labels=None, n_crops=1, jump=0):
-    """
-    Function that crops to the waves. Only works for data that is only v_out or v_in signals (mode).
-
-    Args:
-        data: numpy array or list with the voltage data of the bubbles
-        labels: labels of the data. If n_crops=2, you must put in labels!
-        length: amount of timesteps of the cropped part. Standard value is set at 500.
-        n_crops: can be 1 or 2. For 1, makes one zoomed-in sample per bubble.
-                For 2, picks two parts of the wave signal (so final output doubles in size)
-        jump: Gives the amount of steps away from the frame edge 
-            (low values obtain clearer waves, at the cost of possibly overshooting the bubble time frame)
-
-    Output:
-        cropped_data: Numpy array with the cropped voltages, dimension [#samples, length]
-        labels: labels put in and duplicated to match the cropped_data. If n_crop=1,
-        do not save the labels! Instead call the function using: cropped_data, _ = frame_waves(...)
-        
-    """
-    if n_crops not in [1, 2]:
-        raise ValueError("n_crops should be either 1 or 2")
-    
-    if not isinstance(data, np.ndarray):
-        data = np.array(data)
-    
-    # for VeloOut, grabs the last few <length> datapoints (with a margin of 100 datapoints)
-    if n_crops == 1:
-        cropped_data = np.array([sample[-(jump+100+length):-(jump+100)] for sample in data])
-    if n_crops == 2:
-        cropped_data = np.array([sample[-(jump+100+length):-(jump+100)] for sample in data])
-        cropped_data2 = np.array([sample[-(100+jump+length+length//2):-(100+jump+length//2)] for sample in data])
-        cropped_data = np.concatenate([cropped_data, cropped_data2])
-        labels = np.concatenate([labels, labels])
-    
-    return cropped_data, labels
 
 
 def valid_velo_data(data):
@@ -141,78 +43,6 @@ def valid_velo_data(data):
     y = valid["VeloOut"].astype(float).tolist()
     return np.array(x), np.array(y)
 
-
-def valid_velo_data_cropped(data, length=500, jump=0, bubble_idx = False):
-    """
-    Extracts the data with valid velocities and combines it with the frame_waves function. 
-    Only works for pandas DataFrames right now.
-
-    Args:
-        data: enter the dataframe with bubble voltages and labels
-        length: The amount of timesteps the output will be. Standard value is set at 500.
-        bubble_idx: If True, the function will also return the bubble indices.
-
-    Output:
-        x: Numpy array with cropped voltage data of all valid bubbles. Either only in or out signal.
-        y: Numpy array with labels of all valid bubbles
-        idx: Numpy array with bubble indices (if bubble_idx=True)
-    """
-    valid = data[data["VeloOut"] != -1]
-    x = frame_waves(valid["VoltageOut"].tolist(), length=length, jump=jump)[0]
-    y = valid["VeloOut"].astype(float).tolist()
-
-    if bubble_idx:
-        # if in a later implementation the acquisition frequency is variable within a dataset/dataframe
-        # this functionality can be useful
-        idx = valid["bubble_idx"]
-        return np.array(x), np.array(y), np.array(idx)
-    
-    return np.array(x), np.array(y)
-
-
-def random_flip(data, labels, chance, random_seed=None):
-    """
-    Randomly duplicates some samples and performs a horizontal flip on them.
-
-    Args:
-        data: 2D Numpy array (or list) with features of the samples
-        labels: 1D Numpy array (or list) with labels per sample
-        chance: fraction of data (between 0 and 1) that will get flipped and duplicated
-        random_seed: optional random seed (integer)
-
-    Output:
-        x: Numpy array with the duplicated/transformed samples appended
-        y: Numpy array with the duplicated labels appended
-    """
-    if not (0. <= chance):
-        raise ValueError("Chance should be larger than 0")
-    if len(data) != len(labels):
-        raise ValueError("data and labels should be the same length")
-
-    if isinstance(data, list):
-        data = np.array(data)
-    if isinstance(labels, list):
-        labels = np.array(labels)
-
-    # set random seed if applicable
-    if random_seed is not None:
-        np.random.seed(random_seed)
-
-    # amount of images to be flipped:
-    n = int(chance * len(data))
-
-    # creating an array of length n with random numbers 
-    random_list = np.random.randint(0, len(data), n)
-
-    x_new = data
-    y_new = labels
-    for rand in random_list:
-        duplicate = data[rand][::-1]
-        duplicate_label = labels[rand]
-        x_new = np.concatenate([x_new, [duplicate]])
-        y_new = np.append(y_new, duplicate_label)
-
-    return x_new, y_new
 
 
 def random_noise(data, labels, chance, noise_level=0.005, random_seed=None):
@@ -354,23 +184,9 @@ def flatten_data_distribution(X, y, bins, scaling_factor=0.5, noise=0.005):
     augmented_X, augmented_y = duplicate_and_augment_data(X, y, bin_indices, factors, noise=noise)
     return augmented_X, augmented_y
 
-#filename = '/kaggle/input/bubbles-1/2024-11-12T145426_seperate.csv'
-#data = read_seperate_csv_from_zip(filename)
-#print("Data loaded")
 
-def save_second_scaler_cropped(data):
-    feature_scaler = StandardScaler()
-    target_scaler = StandardScaler()
-    X, y = valid_velo_data(data)
-    
-    X_train_val, X_test, y_train_val, y_test = train_test_split(X, y, train_size=0.75, random_state=0)
-    X_train_val, y_train_val = frame_waves(X_train_val, length=250, n_crops=2, jump=0, labels=y_train_val)
-    X_train, X_val, y_train, y_val = train_test_split(X_train_val, y_train_val, train_size=0.67, random_state=0)
-    X_train = feature_scaler.fit_transform(X_train)
-    y_train = target_scaler.fit_transform(y_train.reshape(-1, 1)).flatten()
-    return feature_scaler, target_scaler
 
-def save_second_scaler(data):
+def split_scale_save(data):
     feature_scaler = StandardScaler()
     target_scaler = StandardScaler()
     X, y = valid_velo_data(data)
@@ -385,16 +201,7 @@ def save_second_scaler(data):
     y_test_scaled = target_scaler.transform(y_test.reshape(-1, 1)).flatten()
     return feature_scaler, target_scaler, X_train_scaled, y_train_scaled, X_val_scaled, y_val_scaled, X_test_scaled, y_test_scaled
 
-'''
-data = read_seperate_csv_from_zip('All_bubbles.zip')
-feature_scaler, target_scaler = save_second_scaler(data)
-with open('feature_scaler.pkl', 'wb') as file:
-    pickle.dump(feature_scaler, file)
 
-# Target scaler
-with open('target_scaler.pkl', 'wb') as file:
-    pickle.dump(target_scaler, file)
-'''
 
 
     
