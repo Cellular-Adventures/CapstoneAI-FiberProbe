@@ -1,22 +1,25 @@
-### Start user input ###
-path_to_data = r'U:\Bubble Column\Data\2411_Xray alcohols\Fiber Probe\241108 - Water center of column'
-path_to_output = r'H:\My Documents\Capstone results'
-files = [3]
-dist_plots = True
-parity_plots = True
-check_plots = True
-### End user input ###
-
 # Libary imports
 import pandas as pd
 import torch
 import numpy as np
+import os
 
 # Function imports
 from advanced_dataloading import process_folder, process_folder_check
 from advanced_preprocessing import valid_velo_data
 from models import load_scalers, load_models, LSTMModel, GRUModel, CNNModel, predict
 from visualization import plot_dist_labeled, plot_dist_all, plot_parity_all, plot_parity_separate, plot_parity_ensemble, plot_check_accepted, plot_check_rejected
+
+
+### Start user input ###
+path_to_data = r'U:\Bubble Column\Data\2411_Xray alcohols\Fiber Probe\241108 - Water center of column'
+path_to_output = os.path.join(os.path.expanduser("~"), r"Documents\Codebase\NN-FiberProbe\Output")
+files = [3]
+dist_plots = True
+parity_plots = True
+check_plots = True
+### End user input ###
+
 
 # Load the models and scalers
 gru1, gru2, lstm, cnn1, cnn2 = load_models()
