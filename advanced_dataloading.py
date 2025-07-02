@@ -362,7 +362,7 @@ def save_bubbles(extracted_bubbles, run_name, folder_path, bubble_labels, flow_r
     else:
         file_name = os.path.join(folder_path, f"{flow_rate}_bubbles.csv")
     
-    #saved_bubbles.to_csv(file_name, index=False, sep=";")
+    saved_bubbles.to_csv(file_name, index=False, sep=";")
     print(f"Saved bubbles to {file_name}")
 
     if bubble_labels: 
