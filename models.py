@@ -86,23 +86,23 @@ def load_scalers():
 
 def load_models():
     gru1 = GRUModel(input_size=1, hidden_size=20, num_layers=2)
-    gru1.load_state_dict(torch.load("advanced_model_files/gru1.h5", map_location='cpu'))
+    gru1.load_state_dict(torch.load("advanced_model_files/gru1.h5", map_location='cpu', weights_only=True))
     gru1.eval()
     
     gru2 = GRUModel(input_size=1, hidden_size=10, num_layers=3)
-    gru2.load_state_dict(torch.load("advanced_model_files/gru2.h5", map_location='cpu'))
+    gru2.load_state_dict(torch.load("advanced_model_files/gru2.h5", map_location='cpu', weights_only=True))
     gru2.eval()
     
     lstm = LSTMModel(input_size=1, hidden_size=18, num_layers=2)
-    lstm.load_state_dict(torch.load("advanced_model_files/lstm.h5", map_location='cpu'))
+    lstm.load_state_dict(torch.load("advanced_model_files/lstm.h5", map_location='cpu', weights_only=True))
     lstm.eval()
     
     cnn1 = CNNModel(input_channels=1, hidden_units=32, kernel_size=9, num_layers=7, input_length=600, output_size=1)
-    cnn1.load_state_dict(torch.load("advanced_model_files/cnn1.h5", map_location='cpu'))
+    cnn1.load_state_dict(torch.load("advanced_model_files/cnn1.h5", map_location='cpu', weights_only=True))
     cnn1.eval()
     
     cnn2 = CNNModel(input_channels=1, hidden_units=64, kernel_size=15, num_layers=5, input_length=600, output_size=1)
-    cnn2.load_state_dict(torch.load("advanced_model_files/cnn2.h5", map_location='cpu'))
+    cnn2.load_state_dict(torch.load("advanced_model_files/cnn2.h5", map_location='cpu', weights_only=True))
     cnn2.eval()
 
     return gru1, gru2, lstm, cnn1, cnn2
