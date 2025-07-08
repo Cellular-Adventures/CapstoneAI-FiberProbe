@@ -1,0 +1,11 @@
+name: FP_ensemble
+channels:
+  - defaults
+  - nvidia
+dependencies:
+  - matplotlib
+  - numpy
+  - pandas
+  - pytorch
+  - scikit-learn
+  - scipy
